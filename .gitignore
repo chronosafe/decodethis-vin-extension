@@ -1,0 +1,8 @@
+node_modules/
+.env
+.env.*
+.claude/
+.specstory/
+docs/
+*.zip
+.DS_Store

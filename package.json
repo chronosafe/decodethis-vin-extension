@@ -1,0 +1,11 @@
+{
+  "name": "decodethis-vin-extension",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Chrome extension: decode a selected VIN on DecodeThis",
+  "type": "module",
+  "license": "UNLICENSED",
+  "scripts": {
+    "test": "node --test"
+  }
+}
