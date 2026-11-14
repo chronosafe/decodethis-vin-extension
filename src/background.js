@@ -33,10 +33,10 @@ chrome.contextMenus.onClicked.addListener((info) => {
 // extension on reload and nothing here has run.
 //
 // Not observed: a browser restart of an installed extension (a command-line load fires this
-// event again at every launch, so it cannot tell persistence from re-creation), and a Chrome
-// browser update (reason "chrome_update"). The item should still be there in both, and
-// clearing before creating is what keeps it at one. That is an argument from this code, not
-// something that was tested.
+// event again at every launch, so it cannot tell whether Chrome kept the item or this
+// handler re-created it), and a Chrome browser update (reason "chrome_update"). The item
+// should still be there in both, and clearing before creating is what keeps it at one. That
+// is an argument from this code, not something that was tested.
 chrome.runtime.onInstalled.addListener(async () => {
   try {
     await chrome.contextMenus.removeAll();
