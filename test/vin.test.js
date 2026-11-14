@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeSelection, ACCEPTED_LENGTHS, MAX_NORMALIZED_LENGTH } from '../src/vin.js';
 
-test('strips separators the destination also strips', () => {
+test('strips separators', () => {
   assert.equal(normalizeSelection('XQ5/RT/123456/Z'), 'XQ5RT123456Z');
 });
 
@@ -23,20 +23,20 @@ test('canonicalizes a mixed-case selection', () => {
 });
 
 test('drops non-ASCII characters', () => {
-  assert.equal(normalizeSelection('１２３ABC'), 'ABC');
+  assert.equal(normalizeSelection('\uff11\uff12\uff13ABC'), 'ABC');
 });
 
 test('drops accented letters and emoji rather than folding them', () => {
-  assert.equal(normalizeSelection('CAFÉ123'), 'CAF123');
-  assert.equal(normalizeSelection('😀ABC😀'), 'ABC');
+  assert.equal(normalizeSelection('CAF\u00c9123'), 'CAF123');
+  assert.equal(normalizeSelection('\u{1f600}ABC\u{1f600}'), 'ABC');
 });
 
 test('does not let uppercasing or case-folding turn non-ASCII into ASCII', () => {
   // U+0131 dotless i uppercases to "I"; U+017F long s uppercases to "S";
   // U+212A Kelvin sign case-folds to "k"; U+FB01 uppercases to "FI".
   // Stripping must happen before uppercasing, with no case-insensitive match.
-  assert.equal(normalizeSelection('ıſKﬁ'), '');
-  assert.equal(normalizeSelection('AıB'), 'AB');
+  assert.equal(normalizeSelection('\u0131\u017f\u212a\ufb01'), '');
+  assert.equal(normalizeSelection('A\u0131B'), 'AB');
 });
 
 test('keeps I, O and Q', () => {
@@ -44,7 +44,7 @@ test('keeps I, O and Q', () => {
 });
 
 test('returns empty string for a selection with nothing alphanumeric', () => {
-  assert.equal(normalizeSelection('— — —'), '');
+  assert.equal(normalizeSelection('\u2014 \u2014 \u2014'), '');
   assert.equal(normalizeSelection('   \n\t '), '');
   assert.equal(normalizeSelection(''), '');
 });
@@ -81,7 +81,7 @@ test('a whole paragraph yields a short, URL-safe result', () => {
 
 test('output only ever contains A-Z and 0-9', () => {
   const nasty = [
-    'AB\u0000CD', 'AB​CD', 'AB‮CD', 'AB CD', 'a?b&c=d#e%f/g\\h',
+    'AB\u0000CD', 'AB\u200bCD', 'AB\u202eCD', 'AB\u00a0CD', 'a?b&c=d#e%f/g\\h',
     'K7M2A004171&foo=evil', '<script>alert(1)</script>', '"quoted" \'single\'',
   ];
   for (const input of nasty) {

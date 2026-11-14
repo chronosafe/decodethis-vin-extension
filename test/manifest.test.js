@@ -1,16 +1,22 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 
 const root = new URL('../', import.meta.url);
 const read = (p) => readFileSync(new URL(p, root));
 const manifest = JSON.parse(read('manifest.json').toString('utf8'));
+const pkg = JSON.parse(read('package.json').toString('utf8'));
 
-test('is a Manifest V3 extension with the expected name and version', () => {
+test('is a Manifest V3 extension with the expected name', () => {
   assert.equal(manifest.manifest_version, 3);
   assert.equal(manifest.name, 'DecodeThis VIN Lookup');
-  assert.equal(manifest.version, '1.0.0');
+});
+
+test('has a valid store version that matches package.json', () => {
+  // Every Web Store upload needs a higher version, so the exact number is not pinned here.
+  // Chrome allows one to four dot-separated integers; package.json is kept in step so the two cannot drift.
+  assert.match(manifest.version, /^\d+(\.\d+){0,3}$/);
+  assert.equal(manifest.version, pkg.version);
 });
 
 test('declares exactly one permission: contextMenus', () => {
@@ -59,7 +65,7 @@ test('every module the service worker imports is a relative file that exists', (
     for (const m of src.matchAll(/^\s*import\s+(?:[^'";]*?\s+from\s+)?['"]([^'"]+)['"]/gm)) {
       assert.match(m[1], /^\.\.?\//, `${rel} imports a non-relative module: ${m[1]}`);
       const target = new URL(m[1], new URL(rel, root));
-      const relTarget = fileURLToPath(target).slice(fileURLToPath(root).length);
+      const relTarget = target.pathname.slice(root.pathname.length); // URL paths, so this also holds on Windows
       assert.ok(existsSync(target), `${rel} imports ${m[1]} which does not exist`);
       visit(relTarget);
     }

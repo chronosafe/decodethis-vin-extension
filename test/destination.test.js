@@ -27,7 +27,7 @@ test('normalizes before building', () => {
 });
 
 test('emits an empty vin param rather than no param when nothing survives', () => {
-  assert.equal(buildDecodeUrl('— — —'), 'https://decodethis.com/x/decode?vin=');
+  assert.equal(buildDecodeUrl('\u2014 \u2014 \u2014'), 'https://decodethis.com/x/decode?vin=');
   assert.equal(buildDecodeUrl(''), 'https://decodethis.com/x/decode?vin=');
   assert.equal(buildDecodeUrl(undefined), 'https://decodethis.com/x/decode?vin=');
 });
@@ -51,7 +51,7 @@ test('a whole paragraph still produces a bounded URL', () => {
 });
 
 test('non-ASCII characters never survive into the URL', () => {
-  const url = buildDecodeUrl('１２３ÀBC—😀');
+  const url = buildDecodeUrl('\uff11\uff12\uff13\u00c0BC\u2014\u{1f600}');
   assert.equal(url, 'https://decodethis.com/x/decode?vin=BC');
   assert.match(url, /^[\x20-\x7e]+$/);
 });

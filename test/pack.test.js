@@ -37,5 +37,5 @@ test('every source file is packed, so an import can never point outside the zip'
 
 test('nothing outside the extension itself is packed', () => {
   const allowed = new Set(['manifest.json', ...Object.values(manifest.icons)]);
-  for (const file of packed) assert.ok(allowed.has(file) || file.startsWith('src/'), `${file} is not part of the extension`);
+  for (const file of packed) assert.ok(allowed.has(file) || /^src\/[A-Za-z0-9._-]+\.js$/.test(file), `${file} is not part of the extension`);
 });
