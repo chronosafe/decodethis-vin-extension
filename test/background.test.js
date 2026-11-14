@@ -80,16 +80,96 @@ test('reads runtime.lastError when creating the item so a failure is not left un
   assert.ok(env.lastErrorReads > 0);
 });
 
-test('a click on the menu item opens exactly one tab at the decode URL', async () => {
+const SERIAL_URL = 'https://decodethis.com/x/decode?vin=K7M2A004171';
+const click = (env, tab, selectionText = 'K7M2A004171') => env.listeners.clicked({ menuItemId: 'decode-vin', selectionText }, tab);
+
+test('a click opens exactly one tab, immediately to the right of the page it came from', async () => {
   const env = await loadWorker();
-  env.listeners.clicked({ menuItemId: 'decode-vin', selectionText: 'K7M2A004171' }, { id: 7 });
-  assert.deepEqual(env.tabs, [{ url: 'https://decodethis.com/x/decode?vin=K7M2A004171' }]);
+  click(env, { id: 7, index: 3 });
+  assert.deepEqual(env.tabs, [{ url: SERIAL_URL, index: 4 }]);
 });
 
-test('opens the tab with only a url, so the new tab is an ordinary foreground tab', async () => {
+test('the new tab goes exactly one place to the right of the page it came from', async () => {
+  for (const index of [0, 1, 5, 41]) {
+    const env = await loadWorker();
+    click(env, { id: 9, index });
+    assert.equal(env.tabs[0].index, index + 1, `from index ${index}`);
+  }
+});
+
+test('passes nothing but the address and the position to Chrome', async () => {
+  // Adding any other option must be a deliberate, separately verified change, so it has to be made here too.
+  for (const tab of [undefined, { id: 7 }, { id: 7, index: 3 }, { index: 3, windowId: 2, openerTabId: 5, active: true }]) {
+    const env = await loadWorker();
+    click(env, tab);
+    assert.deepEqual(Object.keys(env.tabs[0]).filter((key) => !['url', 'index'].includes(key)), [], `tab ${JSON.stringify(tab)}`);
+  }
+});
+
+test('a missing tab still opens the tab at the right address, and throws nothing', async () => {
+  for (const tab of [undefined, null]) {
+    const env = await loadWorker();
+    click(env, tab);
+    assert.deepEqual(env.tabs, [{ url: SERIAL_URL }]);
+  }
+});
+
+test('a tab with no index, or one that is not a usable position, opens in Chrome\'s default place', async () => {
+  for (const tab of [{}, { id: 7 }, { index: -1 }, { index: 1.5 }, { index: '3' }, { index: NaN }, { index: Infinity }, { index: null }]) {
+    const env = await loadWorker();
+    click(env, tab);
+    assert.deepEqual(env.tabs, [{ url: SERIAL_URL }], `tab ${JSON.stringify(tab)}`);
+  }
+});
+
+test('does not pass the id of the page it came from', async () => {
   const env = await loadWorker();
-  env.listeners.clicked({ menuItemId: 'decode-vin', selectionText: 'K7M2A004171' }, { id: 7 });
-  assert.deepEqual(Object.keys(env.tabs[0]), ['url']);
+  click(env, { id: 7, index: 3 });
+  assert.ok(!('openerTabId' in env.tabs[0]));
+});
+
+test('odd tab values never throw and never change the address', async () => {
+  const odd = [{}, { id: '7' }, { id: NaN }, { index: -4 }, { index: 1.5 }, { id: null, index: null }, 'tab', 42, [], () => {}, true];
+  for (const tab of odd) {
+    const env = await loadWorker();
+    assert.doesNotThrow(() => click(env, tab), `tab ${String(tab)}`);
+    assert.equal(env.tabs.length, 1);
+    assert.equal(env.tabs[0].url, SERIAL_URL);
+  }
+});
+
+test('the address is the same whatever the tab is', async () => {
+  const urls = new Set();
+  for (const tab of [undefined, {}, { id: 3 }, { index: 3 }, { id: 3, index: 3 }, { id: -1 }, { index: 900 }]) {
+    const env = await loadWorker();
+    click(env, tab);
+    urls.add(env.tabs[0].url);
+  }
+  assert.deepEqual([...urls], [SERIAL_URL]);
+});
+
+test('nothing but the selection reaches the address, whatever else Chrome puts in the click', async () => {
+  const env = await loadWorker();
+  const info = {
+    menuItemId: 'decode-vin', selectionText: 'K7M2A004171', editable: false, frameId: 0, wasChecked: false,
+    pageUrl: 'https://listing.example/lot/123?utm=a', frameUrl: 'https://listing.example/frame', linkUrl: 'https://other.example/x', srcUrl: 'https://img.example/a.png',
+  };
+  const tab = { id: 7, index: 3, windowId: 2, url: 'https://listing.example/lot/123', title: 'Lot 123', incognito: false };
+  env.listeners.clicked(info, tab);
+  assert.deepEqual(env.tabs, [{ url: SERIAL_URL, index: 4 }]);
+});
+
+test('with no selection the page address is not used as a stand-in', async () => {
+  const env = await loadWorker();
+  env.listeners.clicked({ menuItemId: 'decode-vin', pageUrl: 'https://listing.example/lot/123', frameUrl: 'https://listing.example/frame', linkUrl: 'https://other.example/x' }, { id: 7, index: 3 });
+  assert.deepEqual(env.tabs, [{ url: 'https://decodethis.com/x/decode?vin=', index: 4 }]);
+});
+
+test('opens only one tab per click', async () => {
+  const env = await loadWorker();
+  click(env, { id: 7, index: 3 });
+  await settle();
+  assert.equal(env.tabs.length, 1);
 });
 
 test('normalizes the selection before opening', async () => {

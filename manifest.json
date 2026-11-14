@@ -2,6 +2,7 @@
   "manifest_version": 3,
   "name": "DecodeThis VIN Lookup",
   "version": "1.0.0",
+  "minimum_chrome_version": "123",
   "description": "Select a VIN on a web page, right-click, and decode it on DecodeThis in a new tab.",
   "icons": {
     "16": "icons/icon16.png",

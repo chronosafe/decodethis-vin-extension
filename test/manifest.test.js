@@ -15,8 +15,16 @@ test('is a Manifest V3 extension with the expected name', () => {
 test('has a valid store version that matches package.json', () => {
   // Every Web Store upload needs a higher version, so the exact number is not pinned here.
   // Chrome allows one to four dot-separated integers; package.json is kept in step so the two cannot drift.
-  assert.match(manifest.version, /^\d+(\.\d+){0,3}$/);
+  // Chrome wants one to four integers from 0 to 65535 with no leading zeros.
+  assert.match(manifest.version, /^(0|[1-9]\d{0,4})(\.(0|[1-9]\d{0,4})){0,3}$/);
+  for (const part of manifest.version.split('.')) assert.ok(Number(part) <= 65535, `${part} is above 65535`);
   assert.equal(manifest.version, pkg.version);
+});
+
+test('names the Chrome version the code needs', () => {
+  // The install handler uses the promise form of contextMenus.removeAll, which Chrome documents as 123 or later.
+  assert.match(manifest.minimum_chrome_version, /^\d+$/);
+  assert.ok(Number(manifest.minimum_chrome_version) >= 123);
 });
 
 test('declares exactly one permission: contextMenus', () => {
@@ -25,7 +33,7 @@ test('declares exactly one permission: contextMenus', () => {
 
 test('declares nothing that can reach into pages or raise an install warning', () => {
   // Any new top-level key must be a deliberate decision: add it here with a reason.
-  const allowed = ['manifest_version', 'name', 'version', 'description', 'icons', 'permissions', 'background'];
+  const allowed = ['manifest_version', 'name', 'version', 'minimum_chrome_version', 'description', 'icons', 'permissions', 'background'];
   assert.deepEqual(Object.keys(manifest).filter((k) => !allowed.includes(k)), []);
   for (const forbidden of [
     'host_permissions', 'optional_permissions', 'optional_host_permissions', 'content_scripts',
