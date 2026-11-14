@@ -6,8 +6,8 @@ A Chrome extension: select a VIN on a web page, right-click, and decode it on
 ## Status
 
 Implemented, with an automated test suite and manual verification in Chrome on
-macOS. Not yet submitted to the Chrome Web Store, and not yet exercised on
-Windows or Linux.
+macOS; the automated test suite also runs on Linux in CI. Not yet submitted to the
+Chrome Web Store, and not yet exercised in Chrome on Windows or Linux.
 
 ## What it does
 
@@ -56,7 +56,7 @@ if it works:
 
 - **One permission.** The manifest's `permissions` must be exactly
   `contextMenus`, with no host permissions and no content script. The goal this
-  serves is an install with no permission warning, and that outcome is checked,
+  serves is an install with no permission warning, and that outcome is computed,
   not assumed. Evidence so far:
   - In November 2026, Chrome for Testing 157 (Stable channel) was asked, with
     `chrome.management.getPermissionWarningsByManifest`, about this manifest as
