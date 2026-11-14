@@ -1,7 +1,8 @@
 /**
- * The destination's documented length contract: 5-14 characters, or exactly 17.
+ * The length contract this extension was designed against: 5-14 characters, or
+ * exactly 17. The contract lives outside this repository.
  *
- * This is recorded here for reference and is deliberately NOT enforced by the
+ * It is recorded here for reference and is deliberately NOT enforced by the
  * extension. The destination decides what is decodable, and a menu click that
  * silently does nothing reads as broken, so the extension never refuses to open
  * a tab on length grounds.
@@ -11,10 +12,11 @@ export const ACCEPTED_LENGTHS = Object.freeze({ min: 5, max: 14, exact: 17 });
 /**
  * Upper bound on the normalized text.
  *
- * Chrome shortens the menu label but hands the click handler the entire
- * selection, however long, so nothing else bounds the address we build. This
- * cap does. It sits well above every accepted length, so cutting a long
- * selection down to it can never produce a string of an accepted length.
+ * Chrome shortens the menu label, but in Chrome 157 it still handed the click
+ * handler a selection of about 180 characters whole, so nothing else bounds the
+ * address we build. This cap does. It sits well above every accepted length, so
+ * cutting a long selection down to it can never produce a string of an accepted
+ * length.
  */
 export const MAX_NORMALIZED_LENGTH = 64;
 

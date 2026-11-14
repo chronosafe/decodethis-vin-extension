@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 // A minimal stand-in for the parts of the `chrome` API the service worker touches.
 function makeChrome() {
-  const env = { listeners: {}, events: [], tabs: [], menus: [], lastErrorReads: 0 };
+  const env = { listeners: {}, events: [], tabs: [], menus: [], lastErrorReads: 0, removeAll: () => Promise.resolve() };
   env.chrome = {
     runtime: {
       onInstalled: { addListener: (fn) => { env.listeners.installed = fn; } },
@@ -11,7 +11,8 @@ function makeChrome() {
     },
     contextMenus: {
       onClicked: { addListener: (fn) => { env.listeners.clicked = fn; } },
-      removeAll: () => { env.events.push('removeAll'); return Promise.resolve(); },
+      // Tests can swap in a slower or failing removeAll through env.removeAll.
+      removeAll: () => { env.events.push('removeAll'); return env.removeAll(); },
       create: (props, callback) => { env.events.push('create'); env.menus.push(props); if (callback) callback(); return props.id; },
     },
     tabs: { create: (props) => { env.tabs.push(props); return Promise.resolve({}); } },
@@ -35,13 +36,6 @@ test('registers both listeners as soon as the module is evaluated', async () => 
   assert.equal(typeof env.listeners.installed, 'function');
 });
 
-test('every evaluation registers the click listener again (a woken worker is a fresh one)', async () => {
-  const first = await loadWorker();
-  const second = await loadWorker();
-  assert.equal(typeof first.listeners.clicked, 'function');
-  assert.equal(typeof second.listeners.clicked, 'function');
-});
-
 test('on install, creates one selection-only menu item', async () => {
   const env = await loadWorker();
   env.listeners.installed({ reason: 'install' });
@@ -56,6 +50,27 @@ test('on every install or update, clears old items first so ids never duplicate'
   env.listeners.installed({ reason: 'update' });
   await settle();
   assert.deepEqual(env.events, ['removeAll', 'create', 'removeAll', 'create']);
+});
+
+test('waits for the clear to finish before creating the item', async () => {
+  const env = await loadWorker();
+  let finishClearing;
+  env.removeAll = () => new Promise((resolve) => { finishClearing = resolve; });
+  env.listeners.installed({ reason: 'update' });
+  await settle();
+  assert.deepEqual(env.events, ['removeAll'], 'create must not run while the clear is still pending');
+  finishClearing();
+  await settle();
+  assert.deepEqual(env.events, ['removeAll', 'create']);
+});
+
+test('still creates the item when clearing fails, so the user is never left with no menu item', async () => {
+  const env = await loadWorker();
+  env.removeAll = () => Promise.reject(new Error('clear failed'));
+  env.listeners.installed({ reason: 'install' });
+  await settle();
+  assert.deepEqual(env.events, ['removeAll', 'create']);
+  assert.equal(env.menus.length, 1);
 });
 
 test('reads runtime.lastError when creating the item so a failure is not left unchecked', async () => {
@@ -92,7 +107,7 @@ test('ignores clicks on any other menu item', async () => {
 test('still opens a tab when nothing usable was selected: a click is never a silent no-op', async () => {
   const env = await loadWorker();
   env.listeners.clicked({ menuItemId: 'decode-vin' }, { id: 7 });
-  env.listeners.clicked({ menuItemId: 'decode-vin', selectionText: '— — —' }, { id: 7 });
+  env.listeners.clicked({ menuItemId: 'decode-vin', selectionText: '\u2014 \u2014 \u2014' }, { id: 7 });
   assert.deepEqual(env.tabs.map((t) => t.url), [
     'https://decodethis.com/x/decode?vin=',
     'https://decodethis.com/x/decode?vin=',

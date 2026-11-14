@@ -1,9 +1,9 @@
 import { normalizeSelection } from './vin.js';
 
 /**
- * The address a click opens. It is a stable entry address owned by the
- * destination, which decides where it leads. Keep the origin and path in this
- * one constant so nothing else in the extension can drift from it.
+ * The address a click opens. What happens there is up to the site; this
+ * extension only builds the address. Keep the origin and path in this one
+ * constant so nothing else in the extension can drift from it.
  *
  * It must target the decode entry, never a vehicle page path; a test pins the
  * exact value.
