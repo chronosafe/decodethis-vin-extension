@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 // A minimal stand-in for the parts of the `chrome` API the service worker touches.
 function makeChrome() {
-  const env = { listeners: {}, events: [], tabs: [], menus: [], lastErrorReads: 0, removeAll: () => Promise.resolve(), slowCreate: false };
+  const env = { listeners: {}, events: [], tabs: [], menus: [], lastErrorReads: 0, removeAll: () => Promise.resolve(), slowCreate: false, createTab: () => Promise.resolve({}) };
   env.chrome = {
     runtime: {
       onInstalled: { addListener: (fn) => { env.listeners.installed = fn; } },
@@ -16,7 +16,8 @@ function makeChrome() {
       // A real Chrome calls the callback on a later turn; tests can ask for that with env.slowCreate.
       create: (props, callback) => { env.events.push('create'); env.menus.push(props); if (callback) { if (env.slowCreate) setTimeout(callback, 5); else callback(); } return props.id; },
     },
-    tabs: { create: (props) => { env.tabs.push(props); return Promise.resolve({}); } },
+    // Tests can make Chrome refuse a tab, or answer oddly, through env.createTab. Every call is recorded first.
+    tabs: { create: (props) => { env.tabs.push(props); return env.createTab(props); } },
   };
   return env;
 }
@@ -167,6 +168,40 @@ test('with no selection the page address is not used as a stand-in', async () =>
   const env = await loadWorker();
   env.listeners.clicked({ menuItemId: 'decode-vin', pageUrl: 'https://listing.example/lot/123', frameUrl: 'https://listing.example/frame', linkUrl: 'https://other.example/x' }, { id: 7, index: 3 });
   assert.deepEqual(env.tabs, [{ url: 'https://decodethis.com/x/decode?vin=', index: 4 }]);
+});
+
+test('opens the plain tab instead when Chrome refuses the placed one, so a click is never lost', async () => {
+  const env = await loadWorker();
+  env.createTab = (props) => (props.index === undefined ? Promise.resolve({}) : Promise.reject(new Error('refused')));
+  click(env, { id: 7, index: 3 });
+  await settle();
+  assert.deepEqual(env.tabs, [{ url: SERIAL_URL, index: 4 }, { url: SERIAL_URL }]);
+});
+
+test('retries the plain tab even when the first attempt had no position', async () => {
+  const env = await loadWorker();
+  let first = true;
+  env.createTab = () => { if (first) { first = false; return Promise.reject(new Error('refused')); } return Promise.resolve({}); };
+  click(env, undefined);
+  await settle();
+  assert.deepEqual(env.tabs, [{ url: SERIAL_URL }, { url: SERIAL_URL }]);
+});
+
+test('if the retry is refused as well, nothing is thrown or left unhandled', async () => {
+  const env = await loadWorker();
+  env.createTab = () => Promise.reject(new Error('refused'));
+  assert.doesNotThrow(() => click(env, { id: 7, index: 3 }));
+  await settle();
+  await settle();
+  assert.equal(env.tabs.length, 2); // the attempt and one retry, and no more
+});
+
+test('tolerates tabs.create returning something that is not a promise', async () => {
+  const env = await loadWorker();
+  env.createTab = () => undefined;
+  assert.doesNotThrow(() => click(env, { id: 7, index: 3 }));
+  await settle();
+  assert.deepEqual(env.tabs, [{ url: SERIAL_URL, index: 4 }]);
 });
 
 test('opens only one tab per click', async () => {
