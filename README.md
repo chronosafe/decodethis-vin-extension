@@ -15,12 +15,16 @@ Windows or Linux.
 2. Right-click. One menu item appears: `Decode "<your selection>" on DecodeThis`.
    Chrome fills in the selection, shows the item only when text is selected, and
    shortens the label for a long selection.
-3. Click it. A new tab opens on decodethis.com with the selection in its address.
-   The page you were reading is left as it was.
+3. Click it. A new tab opens on decodethis.com with the selection in its address,
+   immediately to the right of the page you were reading (observed in November 2026
+   with Chrome for Testing 157 on macOS, in a normal browser window). The extension
+   cannot read or change the content of the page you were reading, and it uses only
+   the text you selected.
 
 The extension never refuses to open the tab. It reduces the selection to ASCII
 letters and digits, uppercases it, keeps at most the first 64 characters, and
-leaves it to the site to decide whether the result is something it can decode.
+leaves it to the site to decide whether the result is something it can decode. It
+needs Chrome 123 or later.
 
 ### Selecting a VIN
 
@@ -106,7 +110,7 @@ No dependencies.
 
 ```bash
 npm test          # node --test
-npm run pack      # build dist/decodethis-vin-lookup.zip from an explicit list of files
+npm run pack      # run the tests, then build dist/decodethis-vin-lookup.zip from an explicit list of files
 npm run icons     # regenerate the placeholder icons in icons/
 ```
 
