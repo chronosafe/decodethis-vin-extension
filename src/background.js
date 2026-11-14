@@ -17,8 +17,8 @@ const MENU_ITEM = { id: MENU_ID, title: 'Decode "%s" on DecodeThis', contexts: [
 // and the click silently does nothing. Do not move this.
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId !== MENU_ID) return;
-  // Always open a tab, even for an empty or odd selection: a click that visibly does
-  // nothing reads as broken, and the destination decides what is decodable.
+  // Open a tab even for an empty or odd selection: a click that visibly does nothing
+  // reads as broken, and the destination decides what is decodable.
   const url = buildDecodeUrl(info.selectionText);
   // If Chrome refuses the tab for any reason, try again the plain way: a refusal here would otherwise be
   // exactly the silent no-op described above. Wrapping the call in a new promise turns a synchronous throw

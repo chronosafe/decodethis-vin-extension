@@ -21,7 +21,8 @@ Chrome Web Store, and not yet exercised in Chrome on Windows or Linux.
    cannot read or change the content of the page you were reading, and it uses only
    the text you selected.
 
-The extension never refuses to open the tab. It reduces the selection to ASCII
+The extension does not refuse to open the tab, whatever you selected; if Chrome
+refuses it twice, nothing opens. It reduces the selection to ASCII
 letters and digits, uppercases it, keeps at most the first 64 characters, and
 leaves it to the site to decide whether the result is something it can decode. It
 needs Chrome 123 or later.

@@ -69,7 +69,7 @@ test('waits for the clear to finish before creating the item', async () => {
   assert.deepEqual(env.events, ['removeAll', 'create']);
 });
 
-test('still creates the item when clearing fails, so the user is never left with no menu item', async () => {
+test('still creates the item when clearing fails', async () => {
   const env = await loadWorker();
   env.removeAll = () => Promise.reject(new Error('clear failed'));
   env.listeners.installed({ reason: 'install' });
@@ -241,7 +241,7 @@ test('ignores clicks on any other menu item', async () => {
   assert.deepEqual(env.tabs, []);
 });
 
-test('still opens a tab when nothing usable was selected: a click is never a silent no-op', async () => {
+test('still opens a tab when nothing usable was selected, instead of refusing to', async () => {
   const env = await loadWorker();
   env.listeners.clicked({ menuItemId: 'decode-vin' }, { id: 7 });
   env.listeners.clicked({ menuItemId: 'decode-vin', selectionText: '\u2014 \u2014 \u2014' }, { id: 7 });
