@@ -24,9 +24,11 @@ test('the pack script has one file list and one zip command, and the common ways
 
   // Judge only the code lines: no comments, blank lines or echoed messages. A tripwire for the common ways to add
   // a second command or change the list, not a proof: every line that mentions zip or set must be one of a few known lines.
-  // An echoed message cannot hide a command: with its quoted text removed, an echo line must be just `echo`, optionally to stderr.
+  // An echoed message cannot hide a command: it may not contain command substitution, and with its quoted text
+  // removed an echo line must be just `echo`, optionally to stderr.
   const code = lines.map((line) => line.trim()).filter((line) => line && !line.startsWith('#')).filter((line) => {
     if (!line.startsWith('echo ')) return true;
+    assert.doesNotMatch(line, /\$\(|`/, `${line} may not run a command inside an echoed message`);
     assert.match(line.replace(/"[^"]*"/g, ''), /^echo\s*(>&2)?$/, `${line} may only echo a quoted message`);
     return false;
   });
