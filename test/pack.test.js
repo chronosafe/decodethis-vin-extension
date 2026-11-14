@@ -17,14 +17,19 @@ const listLines = lines.filter((line) => /^\s*set\s+--\s/.test(line));
 const packed = new Set(listLines.length === 1 ? listLines[0].trim().split(/\s+/).slice(2) : []);
 const IMPORT_FROM = /^\s*import\s+(?:[^'";]*?\s+from\s+)?['"]([^'"]+)['"]/gm;
 
-test('the pack script has exactly one file list and one zip command, which uses that list and nothing else', () => {
+test('the pack script has one file list and one zip command, and the common ways of adding another are refused', () => {
   assert.equal(listLines.length, 1, 'one `set -- ...` line holds the file list');
   assert.ok(packed.size >= 7);
   for (const file of packed) assert.match(file, /^[A-Za-z0-9][A-Za-z0-9._/-]*$/, `${file} must be a plain named path (no glob, variable or directory)`);
 
   // Judge only the code lines: no comments, blank lines or echoed messages. A tripwire for the common ways to add
   // a second command or change the list, not a proof: every line that mentions zip or set must be one of a few known lines.
-  const code = lines.map((line) => line.trim()).filter((line) => line && !line.startsWith('#') && !line.startsWith('echo '));
+  // An echoed message cannot hide a command: with its quoted text removed, an echo line must be just `echo`, optionally to stderr.
+  const code = lines.map((line) => line.trim()).filter((line) => line && !line.startsWith('#')).filter((line) => {
+    if (!line.startsWith('echo ')) return true;
+    assert.match(line.replace(/"[^"]*"/g, ''), /^echo\s*(>&2)?$/, `${line} may only echo a quoted message`);
+    return false;
+  });
   const zipLines = code.filter((line) => /\bzip\b/.test(line));
   const notCommands = ['for tool in zip unzip; do', 'out=dist/decodethis-vin-lookup.zip']; // a loop over tool names and the output file name
   assert.deepEqual(zipLines.filter((line) => !notCommands.includes(line)), ['zip -X -q "$tmp" "$@"'], 'the only zip command is the plain one over "$@"');

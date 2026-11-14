@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 // A minimal stand-in for the parts of the `chrome` API the service worker touches.
 function makeChrome() {
-  const env = { listeners: {}, events: [], tabs: [], menus: [], lastErrorReads: 0, removeAll: () => Promise.resolve() };
+  const env = { listeners: {}, events: [], tabs: [], menus: [], lastErrorReads: 0, removeAll: () => Promise.resolve(), slowCreate: false };
   env.chrome = {
     runtime: {
       onInstalled: { addListener: (fn) => { env.listeners.installed = fn; } },
@@ -13,7 +13,8 @@ function makeChrome() {
       onClicked: { addListener: (fn) => { env.listeners.clicked = fn; } },
       // Tests can swap in a slower or failing removeAll through env.removeAll.
       removeAll: () => { env.events.push('removeAll'); return env.removeAll(); },
-      create: (props, callback) => { env.events.push('create'); env.menus.push(props); if (callback) callback(); return props.id; },
+      // A real Chrome calls the callback on a later turn; tests can ask for that with env.slowCreate.
+      create: (props, callback) => { env.events.push('create'); env.menus.push(props); if (callback) { if (env.slowCreate) setTimeout(callback, 5); else callback(); } return props.id; },
     },
     tabs: { create: (props) => { env.tabs.push(props); return Promise.resolve({}); } },
   };
@@ -21,9 +22,10 @@ function makeChrome() {
 }
 
 let fresh = 0;
-async function loadWorker({ removeAll } = {}) {
+async function loadWorker({ removeAll, slowCreate } = {}) {
   const env = makeChrome();
   if (removeAll) env.removeAll = removeAll;
+  if (slowCreate) env.slowCreate = true;
   globalThis.chrome = env.chrome;
   await import(`../src/background.js?fresh=${++fresh}`); // distinct URL = a new evaluation, like a woken worker
   return env;
@@ -32,7 +34,7 @@ const settle = () => new Promise((resolve) => setImmediate(resolve));
 
 test('registers both listeners as soon as the module is evaluated, even if Chrome is slow to answer', async () => {
   // A real Chrome answers over IPC, so a listener registered after waiting on it would not exist yet when the click arrives.
-  const env = await loadWorker({ removeAll: () => new Promise((resolve) => setTimeout(resolve, 5)) });
+  const env = await loadWorker({ removeAll: () => new Promise((resolve) => setTimeout(resolve, 5)), slowCreate: true });
   // Nothing has fired yet: a worker woken by a click re-runs the file and must already be listening.
   assert.equal(typeof env.listeners.clicked, 'function');
   assert.equal(typeof env.listeners.installed, 'function');
