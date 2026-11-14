@@ -170,7 +170,7 @@ test('with no selection the page address is not used as a stand-in', async () =>
   assert.deepEqual(env.tabs, [{ url: 'https://decodethis.com/x/decode?vin=', index: 4 }]);
 });
 
-test('opens the plain tab instead when Chrome refuses the placed one, so a click is never lost', async () => {
+test('opens the plain tab instead when Chrome refuses the placed one', async () => {
   const env = await loadWorker();
   env.createTab = (props) => (props.index === undefined ? Promise.resolve({}) : Promise.reject(new Error('refused')));
   click(env, { id: 7, index: 3 });
@@ -194,6 +194,24 @@ test('if the retry is refused as well, nothing is thrown or left unhandled', asy
   await settle();
   await settle();
   assert.equal(env.tabs.length, 2); // the attempt and one retry, and no more
+});
+
+test('retries the plain tab when the first attempt throws synchronously', async () => {
+  const env = await loadWorker();
+  let first = true;
+  env.createTab = () => { if (first) { first = false; throw new Error('invalid arguments'); } return Promise.resolve({}); };
+  assert.doesNotThrow(() => click(env, { id: 7, index: 3 }));
+  await settle();
+  assert.deepEqual(env.tabs, [{ url: SERIAL_URL, index: 4 }, { url: SERIAL_URL }]);
+});
+
+test('if the retry throws synchronously as well, nothing is thrown or left unhandled', async () => {
+  const env = await loadWorker();
+  env.createTab = () => { throw new Error('invalid arguments'); };
+  assert.doesNotThrow(() => click(env, { id: 7, index: 3 }));
+  await settle();
+  await settle();
+  assert.equal(env.tabs.length, 2);
 });
 
 test('tolerates tabs.create returning something that is not a promise', async () => {

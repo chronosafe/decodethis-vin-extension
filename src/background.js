@@ -20,10 +20,11 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   // Always open a tab, even for an empty or odd selection: a click that visibly does
   // nothing reads as broken, and the destination decides what is decodable.
   const url = buildDecodeUrl(info.selectionText);
-  // If Chrome refuses the tab for any reason, try again the plain way: a rejected promise here would be
-  // exactly the silent no-op described above. Nothing may be logged, and if the retry is refused as well
-  // there is nothing more to do, so that is swallowed. Promise.resolve also tolerates a non-promise result.
-  Promise.resolve(chrome.tabs.create({ url, ...positionNextTo(tab) }))
+  // If Chrome refuses the tab for any reason, try again the plain way: a refusal here would otherwise be
+  // exactly the silent no-op described above. Wrapping the call in a new promise turns a synchronous throw
+  // into a refusal too, and tolerates a result that is not a promise. Nothing may be logged, and if the
+  // retry is refused as well, nothing more can be done, so that is swallowed and no tab opens.
+  new Promise((resolve) => resolve(chrome.tabs.create({ url, ...positionNextTo(tab) })))
     .catch(() => chrome.tabs.create({ url }))
     .catch(() => {});
 });
