@@ -25,8 +25,8 @@ leaves it to the site to decide whether the result is something it can decode.
 Observed in November 2026 with Chrome for Testing 157 on macOS:
 
 - Double-clicking a serial that is a single word selects exactly that serial.
-- A serial with hyphens in it is split at the hyphens by a double-click, so a
-  double-click selects only one segment. Drag-select the whole serial instead.
+- A hyphenated serial has to be drag-selected: double-clicking one selects only a
+  single segment of it.
 - Selecting a label together with its value (for example `VIN: ...`) sends the
   label's letters as well, so the address no longer holds only the serial.
 - Triple-clicking a cell that contains a line break selects only the line you
