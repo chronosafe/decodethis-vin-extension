@@ -4,11 +4,11 @@ import { readdirSync, readFileSync } from 'node:fs';
 
 // The extension's anti-goals, as a static tripwire over everything under src/.
 //
-// This is a guard against accidents, not a proof. It looks for a list of known network, storage and logging
+// This is a tripwire against accidents, not a proof. It looks for a list of known network, storage and logging
 // patterns, requires every use of `chrome` to be one of a short allowlist of named APIs, and bans the globals
 // that could hide a call. Someone determined to hide a call can still do it, so review still matters.
-// What it does guarantee is that an ordinary change that adds a fetch, a storage call, a console.log or a new
-// Chrome API fails here, and the self-checks below keep the guard itself from going quietly blind.
+// It is meant to catch an ordinary accidental change that adds a fetch, a storage call, a console.log or a new
+// Chrome API, and the self-checks below keep the guard itself from going quietly blind.
 
 const FORBIDDEN = [
   [/\bfetch\b/, 'fetch'], [/\bXMLHttpRequest\b/, 'XMLHttpRequest'], [/\bWebSocket\b/, 'WebSocket'],
@@ -23,6 +23,7 @@ const FORBIDDEN = [
   [/\bWebTransport\b/, 'WebTransport'], [/\bBroadcastChannel\b/, 'BroadcastChannel'], [/\bcookieStore\b/, 'cookieStore'],
   [/\breportError\b/, 'reportError'], [/\bWorker\b/, 'Worker'], [/\bSharedWorker\b/, 'SharedWorker'],
   [/\bImage\b/, 'Image'], [/\bpostMessage\b/, 'postMessage'], [/\\u/, 'a unicode escape'],
+  [/\bWebSocketStream\b/, 'WebSocketStream'], [/\bclients\b/, 'clients'], [/\bregistration\b/, 'registration'],
 ];
 const ALLOWED_CHROME = new Set([
   'chrome.contextMenus.onClicked.addListener',
@@ -42,7 +43,7 @@ const STRING_LITERAL = /(['"`])(?:\\.|(?!\1)[^\\\n])*\1/g;
 const hidesACommentMarker = (source) => [...source.matchAll(STRING_LITERAL)].some(([literal]) => /(^|\s)\/\/|\/\*|\*\//.test(literal.slice(1, -1)));
 
 /** True for a module specifier that names a plain .js file in the same directory. */
-const isLocalImport = (specifier) => /^\.\/[A-Za-z0-9._-]+\.js$/.test(specifier);
+const isLocalImport = (specifier) => /^\.\/[A-Za-z0-9_-][A-Za-z0-9._-]*\.js$/.test(specifier);
 
 /** Everything wrong with a piece of source, as readable strings. An empty list means it passes. */
 function violations(source) {
@@ -57,7 +58,7 @@ function violations(source) {
 }
 
 const srcDir = new URL('../src/', import.meta.url);
-const files = readdirSync(srcDir).filter((f) => !f.startsWith('.'));
+const files = readdirSync(srcDir).filter((f) => f !== '.DS_Store'); // a hidden .js file would be scanned too
 const sources = files.map((name) => ({ name, source: readFileSync(new URL(name, srcDir), 'utf8') }));
 
 test('src/ contains only JavaScript modules', () => {
@@ -92,6 +93,8 @@ test('the guard flags every way of adding a call that the first version of it mi
     'a string that hides the rest of the line': 'const note = "x //"; fetch(url);',
     'strings that hide the code between them': 'const a = "/*"; fetch(url); const b = "*/";',
     'a web transport': 'new WebTransport(url);',
+    'a web socket stream': 'new WebSocketStream(url);',
+    'the service worker clients': 'self.clients.matchAll();',
     'a broadcast channel': 'new BroadcastChannel("c");',
     'the cookie store': 'cookieStore.set("k", text);',
     'reporting an error to the console': 'reportError(text);',
@@ -113,7 +116,7 @@ test('the guard accepts the Chrome APIs the extension actually uses', () => {
 
 test('only plain .js files in the same directory count as local imports', () => {
   for (const ok of ['./vin.js', './destination.js', './a-b_c.1.js']) assert.ok(isLocalImport(ok), ok);
-  for (const bad of ['./../scripts/net.js', '../scripts/net.js', './sub/dir.js', 'https://example.com/x.js', 'fs', './vin', '/abs.js']) {
+  for (const bad of ['./../scripts/net.js', '../scripts/net.js', './sub/dir.js', 'https://example.com/x.js', 'fs', './vin', '/abs.js', './.hidden.js']) {
     assert.ok(!isLocalImport(bad), `${bad} must not count as a local import`);
   }
 });
@@ -144,6 +147,7 @@ test('registers the click listener before anything can await', () => {
   // A top-level await anywhere before the listener would delay its registration past the worker's first turn.
   const firstAwait = code.search(/\bawait\b/);
   assert.ok(firstAwait === -1 || listener < firstAwait, 'the click listener must come before any await');
+  assert.ok(firstAwait === -1 || installed < firstAwait, 'the install listener must come before any await');
   // And both registrations sit at the top level of the file, not inside another function.
   assert.match(code, /^chrome\.contextMenus\.onClicked\.addListener\(/m);
   assert.match(code, /^chrome\.runtime\.onInstalled\.addListener\(/m);
