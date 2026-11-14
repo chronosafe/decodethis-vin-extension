@@ -21,16 +21,18 @@ function makeChrome() {
 }
 
 let fresh = 0;
-async function loadWorker() {
+async function loadWorker({ removeAll } = {}) {
   const env = makeChrome();
+  if (removeAll) env.removeAll = removeAll;
   globalThis.chrome = env.chrome;
   await import(`../src/background.js?fresh=${++fresh}`); // distinct URL = a new evaluation, like a woken worker
   return env;
 }
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 
-test('registers both listeners as soon as the module is evaluated', async () => {
-  const env = await loadWorker();
+test('registers both listeners as soon as the module is evaluated, even if Chrome is slow to answer', async () => {
+  // A real Chrome answers over IPC, so a listener registered after waiting on it would not exist yet when the click arrives.
+  const env = await loadWorker({ removeAll: () => new Promise((resolve) => setTimeout(resolve, 5)) });
   // Nothing has fired yet: a worker woken by a click re-runs the file and must already be listening.
   assert.equal(typeof env.listeners.clicked, 'function');
   assert.equal(typeof env.listeners.installed, 'function');
@@ -114,7 +116,7 @@ test('a missing tab still opens the tab at the right address, and throws nothing
   }
 });
 
-test('a tab with no index, or one that is not a usable position, opens in Chrome\'s default place', async () => {
+test('passes no position when the tab has no usable index', async () => {
   for (const tab of [{}, { id: 7 }, { index: -1 }, { index: 1.5 }, { index: '3' }, { index: NaN }, { index: Infinity }, { index: null }]) {
     const env = await loadWorker();
     click(env, tab);
