@@ -1,7 +1,7 @@
 # DecodeThis VIN Lookup
 
-A Chrome extension: select a VIN on any web page, right-click, and decode it on
-[DecodeThis](https://decodethis.com) in a new tab.
+A planned Chrome extension: select a VIN on a web page, right-click, and decode
+it on [DecodeThis](https://decodethis.com) in a new tab.
 
 ## Status
 
@@ -13,27 +13,40 @@ starts from a design and plan held privately by the maintainer.
 These are constraints, not aspirations. A change that breaks one is wrong even
 if it works:
 
-- **One permission.** The manifest declares `contextMenus` and nothing else — no
-  host permissions, no content script. Installing shows no permission warning.
-- **The extension makes no network requests.** It opens a tab; that is all.
-- **Nothing is stored or logged.** The selected text is read once, used to build
-  the address of the tab you asked for, and discarded.
+- **One permission.** The manifest's `permissions` must be exactly
+  `contextMenus`, with no host permissions and no content script. The goal this
+  serves is an install with no permission warning, and that outcome is to be
+  checked, not assumed. Evidence so far:
+  - In November 2026, Chrome 157 (Stable) was asked, with
+    `chrome.management.getPermissionWarningsByManifest`, about a throwaway
+    manifest whose `permissions` were exactly `contextMenus`; it returned no
+    warnings. This repository does not yet contain that manifest or a repeatable
+    check.
+  - Chrome's
+    [permissions reference](https://developer.chrome.com/docs/extensions/reference/permissions-list)
+    lists no install warning for `contextMenus` (checked November 2026).
+  - Neither of those is an observed install prompt: none has been seen yet, and
+    the first will be when the package is installed from the Chrome Web Store.
+- **The extension's own code must make no network requests** (for example
+  `fetch`, XHR, WebSocket or beacons). Its only outward effect must be to open a
+  new tab on decodethis.com. The selected text will therefore be sent to that
+  site in the tab's address, as with any link you open, and the address will
+  appear in your browser history like any other navigation.
+- **The extension must not store or log the selection.** It must read it once,
+  use it to build the address of the tab, and discard it.
 
 ## Privacy
 
-Two separate claims, both true, and the distinction matters:
+Nothing is built yet, so none of this describes a shipped build. There are two
+separate points, and the distinction matters:
 
-- **The extension** makes no network calls, stores nothing, and keeps no record
-  of what you select.
-- **The destination**, decodethis.com, decodes and saves the VIN exactly as if
+- **The extension** must make no network calls of its own, store nothing, and
+  keep no record of what you select. The tab it opens will carry the selected
+  text to decodethis.com in its address, and Chrome will record that address in
+  browser history.
+- **The destination**, decodethis.com, will decode and save the VIN exactly as if
   you had typed it into the site yourself, under its published privacy policy.
 
 ## Development
 
-Requires Node 18+. No dependencies.
-
-```bash
-npm test          # node --test
-```
-
-Load unpacked from `chrome://extensions` with Developer mode on.
+No dependencies. Test and install instructions are added with the implementation.
