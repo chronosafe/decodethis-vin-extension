@@ -17,7 +17,7 @@ if it works:
   `contextMenus`, with no host permissions and no content script. The goal this
   serves is an install with no permission warning, and that outcome is to be
   checked, not assumed. Evidence so far:
-  - In November 2026, Chrome 157 (Stable) was asked, with
+  - In November 2026, Chrome for Testing 157 (Stable channel) was asked, with
     `chrome.management.getPermissionWarningsByManifest`, about a throwaway
     manifest whose `permissions` were exactly `contextMenus`; it returned no
     warnings. This repository does not yet contain that manifest or a repeatable
@@ -44,8 +44,11 @@ separate points, and the distinction matters:
   keep no record of what you select. The tab it opens will carry the selected
   text to decodethis.com in its address, and Chrome will record that address in
   browser history.
-- **The destination**, decodethis.com, will decode and save the VIN exactly as if
-  you had typed it into the site yourself, under its published privacy policy.
+- **The destination**, decodethis.com, is a separate service. The tab opens there
+  with the selected text in its address; the site will decode it and keep a
+  record of that decode, governed by its own
+  [privacy policy](https://decodethis.com/web/privacy-policy) rather than by
+  anything in this repository.
 
 ## Development
 
