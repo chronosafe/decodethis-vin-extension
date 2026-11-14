@@ -5,7 +5,9 @@ A Chrome extension: select a VIN on a web page, right-click, and decode it on
 
 ## Status
 
-Implemented and tested. Not yet submitted to the Chrome Web Store.
+Implemented, with an automated test suite and manual verification in Chrome on
+macOS. Not yet submitted to the Chrome Web Store, and not yet exercised on
+Windows or Linux.
 
 ## What it does
 
