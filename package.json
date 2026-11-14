@@ -6,6 +6,8 @@
   "type": "module",
   "license": "UNLICENSED",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "icons": "node scripts/make-icons.mjs",
+    "pack": "npm test && sh scripts/pack.sh"
   }
 }
