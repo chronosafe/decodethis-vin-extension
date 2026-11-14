@@ -44,10 +44,11 @@ separate points, and the distinction matters:
   keep no record of what you select. The tab it opens will carry the selected
   text to decodethis.com in its address, and Chrome will record that address in
   browser history.
-- **The destination**, decodethis.com, is operated by the same maintainer but is
-  not part of this repository. The tab opens there with the selected text in its
-  address. As of November 2026 the site decodes it and keeps a record of that
-  decode; what happens to it is governed by that site's own
+- **The destination**, decodethis.com, is operated by this extension's
+  maintainer but is not part of this repository. The tab opens there with the
+  selected text in its address. As of November 2026 the site decodes it and
+  keeps a record of that decode. How the site handles the selected text and that
+  record is described in that site's own
   [privacy policy](https://decodethis.com/web/privacy-policy), which can change
   independently of this code.
 
