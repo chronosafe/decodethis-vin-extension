@@ -56,4 +56,20 @@ separate points, and the distinction matters:
 
 ## Development
 
-No dependencies. Test and install instructions are added with the implementation.
+No dependencies.
+
+```bash
+npm test          # node --test
+npm run pack      # build dist/decodethis-vin-lookup.zip from an explicit list of files
+npm run icons     # regenerate the placeholder icons in icons/
+```
+
+The tests have been run on Node 22 and 24. The workflow in
+`.github/workflows/test.yml` runs both for every pull request.
+
+To try the extension, unzip `dist/decodethis-vin-lookup.zip`, open
+`chrome://extensions`, turn on Developer mode and choose Load unpacked.
+
+Reloading an unpacked extension needs Developer mode to stay on. Observed in
+November 2026 with Chrome for Testing 157: with it off, Chrome disables the
+extension when it is reloaded, and its menu item disappears.
