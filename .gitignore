@@ -7,4 +7,5 @@ docs/
 *.zip
 *.crx
 *.pem
+dist/
 .DS_Store
