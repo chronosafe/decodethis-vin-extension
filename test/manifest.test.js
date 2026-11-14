@@ -63,7 +63,7 @@ test('every module the service worker imports is a relative file that exists', (
     seen.add(rel);
     const src = read(rel).toString('utf8');
     for (const m of src.matchAll(/^\s*import\s+(?:[^'";]*?\s+from\s+)?['"]([^'"]+)['"]/gm)) {
-      assert.match(m[1], /^\.\.?\//, `${rel} imports a non-relative module: ${m[1]}`);
+      assert.match(m[1], /^\.\/[A-Za-z0-9._-]+\.js$/, `${rel} imports something other than a .js file in its own directory: ${m[1]}`);
       const target = new URL(m[1], new URL(rel, root));
       const relTarget = target.pathname.slice(root.pathname.length); // URL paths, so this also holds on Windows
       assert.ok(existsSync(target), `${rel} imports ${m[1]} which does not exist`);

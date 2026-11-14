@@ -35,6 +35,21 @@ test('every source file is packed, so an import can never point outside the zip'
   for (const file of sources) assert.ok(packed.has(file), `${file} exists but is not packed`);
 });
 
+test('everything the service worker can import is in the zip', () => {
+  // Start at the worker and follow its imports. A packed extension whose imports are missing fails to load,
+  // and nothing else would notice.
+  const importFrom = /^\s*import\s+(?:[^'";]*?\s+from\s+)?['"]([^'"]+)['"]/gm;
+  const closure = new Set();
+  const visit = (file) => {
+    if (closure.has(file)) return;
+    closure.add(file);
+    for (const m of read(file).matchAll(importFrom)) visit(`src/${m[1].replace(/^\.\//, '')}`);
+  };
+  visit(manifest.background.service_worker);
+  assert.ok(closure.size >= 3);
+  for (const file of closure) assert.ok(packed.has(file), `${file} is imported by the worker but is not packed`);
+});
+
 test('nothing outside the extension itself is packed', () => {
   const allowed = new Set(['manifest.json', ...Object.values(manifest.icons)]);
   for (const file of packed) assert.ok(allowed.has(file) || /^src\/[A-Za-z0-9._-]+\.js$/.test(file), `${file} is not part of the extension`);

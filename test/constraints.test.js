@@ -19,6 +19,10 @@ const FORBIDDEN = [
   // Globals that could be used to reach a banned API without naming it.
   [/\bglobalThis\b/, 'globalThis'], [/\bself\b/, 'self'], [/\bwindow\b/, 'window'], [/\bnavigator\b/, 'navigator'],
   [/\bdocument\b/, 'document'],
+  // More ways to reach the network or another context, and a unicode escape, which could spell any banned name.
+  [/\bWebTransport\b/, 'WebTransport'], [/\bBroadcastChannel\b/, 'BroadcastChannel'], [/\bcookieStore\b/, 'cookieStore'],
+  [/\breportError\b/, 'reportError'], [/\bWorker\b/, 'Worker'], [/\bSharedWorker\b/, 'SharedWorker'],
+  [/\bImage\b/, 'Image'], [/\bpostMessage\b/, 'postMessage'], [/\\u/, 'a unicode escape'],
 ];
 const ALLOWED_CHROME = new Set([
   'chrome.contextMenus.onClicked.addListener',
@@ -32,10 +36,19 @@ const ALLOWED_CHROME = new Set([
 // Strip comments so prose in them never trips (or hides from) the checks.
 const stripComments = (code) => code.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/.*$/gm, '$1');
 
+// A string such as "x //" or "/*" can fool the comment stripper into deleting real code after it, so no string
+// literal may contain a comment marker. (URLs are fine: their "//" follows a colon, not whitespace.)
+const STRING_LITERAL = /(['"`])(?:\\.|(?!\1)[^\\\n])*\1/g;
+const hidesACommentMarker = (source) => [...source.matchAll(STRING_LITERAL)].some(([literal]) => /(^|\s)\/\/|\/\*|\*\//.test(literal.slice(1, -1)));
+
+/** True for a module specifier that names a plain .js file in the same directory. */
+const isLocalImport = (specifier) => /^\.\/[A-Za-z0-9._-]+\.js$/.test(specifier);
+
 /** Everything wrong with a piece of source, as readable strings. An empty list means it passes. */
 function violations(source) {
   const code = stripComments(source);
   const found = [];
+  if (hidesACommentMarker(source)) found.push('has a string literal that contains a comment marker');
   for (const [pattern, name] of FORBIDDEN) if (pattern.test(code)) found.push(`uses ${name}`);
   // `chrome` must always be followed by a property, so `const { storage } = chrome` and `chrome["storage"]` fail.
   if (/\bchrome\b(?!\.[A-Za-z_])/.test(code)) found.push('uses chrome other than as chrome.<name>');
@@ -75,6 +88,14 @@ test('the guard flags every way of adding a call that the first version of it mi
     'a dynamic import': "import('./other.js');",
     'eval': 'eval(code);',
     'localStorage': 'localStorage.setItem("k", text);',
+    'a unicode-escaped name': '\\u0066etch(url);',
+    'a string that hides the rest of the line': 'const note = "x //"; fetch(url);',
+    'strings that hide the code between them': 'const a = "/*"; fetch(url); const b = "*/";',
+    'a web transport': 'new WebTransport(url);',
+    'a broadcast channel': 'new BroadcastChannel("c");',
+    'the cookie store': 'cookieStore.set("k", text);',
+    'reporting an error to the console': 'reportError(text);',
+    'an image request': 'new Image().src = url;',
   };
   for (const [label, snippet] of Object.entries(bad)) assert.notDeepEqual(violations(snippet), [], `should flag ${label}`);
 });
@@ -90,7 +111,14 @@ test('the guard accepts the Chrome APIs the extension actually uses', () => {
   for (const snippet of good) assert.deepEqual(violations(snippet), [], snippet);
 });
 
-test('imports only relative local modules', () => {
+test('only plain .js files in the same directory count as local imports', () => {
+  for (const ok of ['./vin.js', './destination.js', './a-b_c.1.js']) assert.ok(isLocalImport(ok), ok);
+  for (const bad of ['./../scripts/net.js', '../scripts/net.js', './sub/dir.js', 'https://example.com/x.js', 'fs', './vin', '/abs.js']) {
+    assert.ok(!isLocalImport(bad), `${bad} must not count as a local import`);
+  }
+});
+
+test('imports only plain .js files in the same directory', () => {
   // Each pattern is confined to one statement (no ';' or quote before 'from'), so it cannot
   // run on into the next one and mistake an ordinary string for a module specifier.
   const importFrom = /^\s*import\s+(?:[^'";]*?\s+from\s+)?['"]([^'"]+)['"]/gm;
@@ -100,7 +128,7 @@ test('imports only relative local modules', () => {
     const code = stripComments(source);
     for (const m of [...code.matchAll(importFrom), ...code.matchAll(exportFrom)]) {
       found += 1;
-      assert.match(m[1], /^\.\//, `${name} pulls in ${m[1]}`);
+      assert.ok(isLocalImport(m[1]), `${name} pulls in ${m[1]}`);
     }
   }
   assert.ok(found >= 2, 'the scan found the known imports, so it is actually looking');
