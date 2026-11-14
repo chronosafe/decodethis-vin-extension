@@ -24,7 +24,8 @@ leaves it to the site to decide whether the result is something it can decode.
 
 ### Selecting a VIN
 
-Observed in November 2026 with Chrome for Testing 157 on macOS:
+Observed in November 2026 with Chrome for Testing 157 on macOS, on a local page
+shaped like an auction listing (a table of label and value cells):
 
 - Double-clicking a serial that is a single word selects exactly that serial.
 - A hyphenated serial has to be drag-selected: double-clicking one selects only a
@@ -73,18 +74,21 @@ if it works:
 - **The extension must not store or log the selection.** It must read it once,
   use it to build the address of the tab, and discard it.
 
-`test/constraints.test.js` enforces the last two: it fails if the source uses a
-network, storage or logging call, imports anything that is not a local module, or
-uses a Chrome API outside a short allowlist.
+`test/constraints.test.js` is a tripwire for the last two, not a proof. It fails
+if the source uses any of a list of known network, storage or logging calls,
+reaches for a global that could hide one, uses `chrome` other than through a
+short allowlist of named APIs, or imports anything that is not a local module.
+It cannot stop someone determined to hide a call, so review still matters.
 
 ## Privacy
 
 The extension has not been published, so none of this describes a listing. There
 are two separate points, and the distinction matters:
 
-- **The extension**'s own code contains no network, storage or logging calls, and
-  a test fails if one is added. It reads the selection once, builds the address
-  of the tab and discards it, so it keeps no record of what you select. The tab
+- **The extension**'s own code contains no network, storage or logging calls;
+  `test/constraints.test.js` is a tripwire that fails if the source adds a known
+  one. It reads the selection once, builds the address of the tab and discards
+  it, so it keeps no record of what you select. The tab
   it opens carries the selected text to decodethis.com in its address, and
   Chrome normally records that address in browser history, subject to your
   history settings.
@@ -108,6 +112,8 @@ npm run icons     # regenerate the placeholder icons in icons/
 
 The tests have been run on Node 22 and 24. The workflow in
 `.github/workflows/test.yml` runs both for every pull request.
+
+`npm run pack` needs the `zip` and `unzip` commands.
 
 To try the extension, unzip `dist/decodethis-vin-lookup.zip`, open
 `chrome://extensions`, turn on Developer mode and choose Load unpacked.
