@@ -8,6 +8,6 @@
   "scripts": {
     "test": "node --test",
     "icons": "node scripts/make-icons.mjs",
-    "pack": "sh scripts/pack.sh"
+    "pack": "npm test && sh scripts/pack.sh"
   }
 }
